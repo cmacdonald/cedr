@@ -4,3 +4,4 @@ tqdm==4.19.5
 pytools==2018.5.2
 flask==1.0.2
 Flask-RESTful==0.3.7
+pandas
