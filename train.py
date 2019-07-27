@@ -79,6 +79,19 @@ def validate(model, dataset, run, qrelf, epoch, model_out_dir):
     return trec_eval(qrelf, runf, VALIDATION_METRIC)
 
 
+def score_docsMZ(model, MZdatafame):
+    #TODO what does "for r in run.values()" do?
+    with torch.no_grad(), tqdm(total=sum(len(r) for r in run.values()), ncols=80, desc=desc, leave=False) as pbar:
+        model.eval()
+    for records in data.iter_valid_recordsMZ(model, MZdatafame, BATCH_SIZE):
+        scores = model(records['query_tok'],
+                           records['query_mask'],
+                           records['doc_tok'],
+                           records['doc_mask'])
+        pbar.update(len(records['query_id']))
+    return scores
+    
+
 def run_model(model, dataset, run, runf, desc='valid'):
     BATCH_SIZE = 16
     rerank_run = {}

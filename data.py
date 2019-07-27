@@ -99,6 +99,16 @@ def iter_valid_records(model, dataset, run, batch_size):
             yield _pack_n_ship(batch)
             batch = {'query_id': [], 'doc_id': [], 'query_tok': [], 'doc_tok': []}
 
+def iter_valid_recordsMZ(model, dataframe, batch_size):
+    batch = {'query_id': [], 'doc_id': [], 'query_tok': [], 'doc_tok': []}
+    for row in dataframe:
+        batch['query_id'].append(row['id_left'])
+        batch['doc_id'].append(row['id_right'])
+        batch['query_tok'].append(model.tokenize(row['text_left']))
+        batch['doc_tok'].append(model.tokenize(row['text_right']))
+        if len(batch['query_id']) == batch_size:
+            yield _pack_n_ship(batch)
+            batch = {'query_id': [], 'doc_id': [], 'query_tok': [], 'doc_tok': []}
 
 def _iter_valid_records(model, dataset, run):
     ds_queries, ds_docs = dataset
