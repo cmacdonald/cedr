@@ -95,7 +95,6 @@ def score_docsMZ(model, MZdatafame):
                            records['query_mask'],
                            records['doc_tok'],
                            records['doc_mask'])
-            print(allScores.shape)
             scores.extend( allScores.reshape(1, -1).squeeze().tolist() )
     return scores
     
