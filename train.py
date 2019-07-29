@@ -26,6 +26,7 @@ def main(model, dataset, train_pairs, qrels, valid_run, qrelf, model_out_dir):
     LR = 0.001
     BERT_LR = 2e-5
     MAX_EPOCH = 100
+    PATIENCE = 20 #how many epochs to wait for validation improvement
 
     params = [(k, v) for k, v in model.named_parameters() if v.requires_grad]
     non_bert_params = {'params': [v for k, v in params if not k.startswith('bert.')]}
@@ -34,6 +35,7 @@ def main(model, dataset, train_pairs, qrels, valid_run, qrelf, model_out_dir):
 
     epoch = 0
     top_valid_score = None
+    top_valid_score_epoch = None
     for epoch in range(MAX_EPOCH):
         loss = train_iteration(model, optimizer, dataset, train_pairs, qrels)
         print(f'train epoch={epoch} loss={loss}')
@@ -43,6 +45,10 @@ def main(model, dataset, train_pairs, qrels, valid_run, qrelf, model_out_dir):
             top_valid_score = valid_score
             print('new top validation score, saving weights')
             model.save(os.path.join(model_out_dir, 'weights.p'))
+            top_valid_score_epoch = epoch
+        if top_valid_score is not None and epoch - top_valid_score_epoch > PATIENCE:
+            print(f'no validation improvement since %{top_valid_score_epoch}, early stopping')
+            break
 
 
 def train_iteration(model, optimizer, dataset, train_pairs, qrels):
@@ -73,7 +79,7 @@ def train_iteration(model, optimizer, dataset, train_pairs, qrels):
 
 
 def validate(model, dataset, run, qrelf, epoch, model_out_dir):
-    VALIDATION_METRIC = 'P.20'
+    VALIDATION_METRIC = 'ndcg'
     runf = os.path.join(model_out_dir, f'{epoch}.run')
     run_model(model, dataset, run, runf)
     return trec_eval(qrelf, runf, VALIDATION_METRIC)
