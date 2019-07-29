@@ -2,6 +2,7 @@ import random
 from tqdm import tqdm
 import torch
 
+GPU=True
 
 def read_datafiles(files):
     queries = {}
@@ -105,7 +106,7 @@ def iter_valid_records(model, dataset, run, batch_size):
 
 def iter_valid_recordsMZ(model, dataframe, batch_size):
     batch = {'query_id': [], 'doc_id': [], 'query_tok': [], 'doc_tok': []}
-    for row in dataframe:
+    for _, row in dataframe.iterrows():
         batch['query_id'].append(row['id_left'])
         batch['doc_id'].append(row['id_right'])
         batch['query_tok'].append(model.tokenize(row['text_left']))
@@ -151,7 +152,9 @@ def _pad_crop(items, l):
         if len(item) > l:
             item = item[:l]
         result.append(item)
-    return torch.tensor(result).long().cuda()
+    if GPU:
+        return torch.tensor(result).long().cuda()
+    return torch.tensor(result).long()
 
 
 def _mask(items, l):
@@ -162,4 +165,6 @@ def _mask(items, l):
         if len(item) >= l:
             item = [1. for _ in item[:l]]
         result.append(item)
-    return torch.tensor(result).float().cuda()
+    if GPU:
+        return torch.tensor(result).float().cuda()
+    return torch.tensor(result).float()
