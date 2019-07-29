@@ -8,6 +8,8 @@ import data
 import argparse
 import train
 
+GPU=True
+
 #This script make an HTTP REST endpoint that exposes a POST method that can score documents:
 #the post expected a JSON object in the following format:
 #{ qid: 'query1', query:'information retrieval', docnos : ['d1', 'd2'], 'docs':['keith proposed information retrieval', 'not matching doc']}
@@ -64,12 +66,14 @@ def main_cli():
     parser.add_argument('--model_weights', type=argparse.FileType('rb'))
     parser.add_argument('--port', default=5678)
 
-    data.GPU = False
+    data.GPU = GPU
     
     args = parser.parse_args()
-    model = train.MODEL_MAP[args.model]()#.cuda()
+    model = train.MODEL_MAP[args.model]()
+    if GPU:
+        model = model.cuda()
     if args.model_weights is not None:
-        model.load(args.model_weights.name, cpu=True)
+        model.load(args.model_weights.name, cpu=not GPU)
     #train.run_model(model, dataset, run, args.out_path.name, desc='rerank')
 
     app = Flask(__name__)
