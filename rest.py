@@ -4,6 +4,7 @@ import pandas as pd
 import sys
 import pickle
 
+import data
 import argparse
 import train
 
@@ -44,8 +45,7 @@ class CEDR(Resource):
             'id_right': args['docnos']
         })
         scores = train.score_docsMZ(self.model, df) 
-        print(scores.flatten().tolist())        
-        response = jsonify(scores.flatten().tolist())
+        response = jsonify(scores)
         response.status_code = 200
         return response
 
@@ -63,11 +63,13 @@ def main_cli():
     parser.add_argument('--model', choices=train.MODEL_MAP.keys(), default='vanilla_bert')
     parser.add_argument('--model_weights', type=argparse.FileType('rb'))
     parser.add_argument('--port', default=5678)
+
+    data.GPU = False
     
     args = parser.parse_args()
     model = train.MODEL_MAP[args.model]()#.cuda()
     if args.model_weights is not None:
-        model.load(args.model_weights.name)
+        model.load(args.model_weights.name, cpu=True)
     #train.run_model(model, dataset, run, args.out_path.name, desc='rerank')
 
     app = Flask(__name__)
