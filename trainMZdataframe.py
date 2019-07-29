@@ -56,7 +56,7 @@ def main_cli():
     
     os.makedirs(args.model_out_dir, exist_ok=True)
 
-    main(trainTable, validTable, args.qrels, args.model, args.initial_bert_weights, args.model_out_dir)
+    main(trainTable, validTable, args.qrels.name, args.model, args.initial_bert_weights, args.model_out_dir)
 
 if __name__ == '__main__':
     main_cli()
