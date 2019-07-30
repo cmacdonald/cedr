@@ -36,18 +36,19 @@ def main(model, dataset, train_pairs, qrels, valid_run, qrelf, model_out_dir):
     epoch = 0
     top_valid_score = None
     top_valid_score_epoch = None
+    print(f'Starting training, upto {MAX_EPOCH} epochs, patience {PATIENCE} LR={LR} BERT_LR={BERT_LR}', flush=True)
     for epoch in range(MAX_EPOCH):
         loss = train_iteration(model, optimizer, dataset, train_pairs, qrels)
-        print(f'train epoch={epoch} loss={loss}')
+        print(f'train epoch={epoch} loss={loss}', flush=True)
         valid_score = validate(model, dataset, valid_run, qrelf, epoch, model_out_dir)
-        print(f'validation epoch={epoch} score={valid_score}')
+        print(f'validation epoch={epoch} score={valid_score}', flush=True)
         if top_valid_score is None or valid_score > top_valid_score:
             top_valid_score = valid_score
-            print('new top validation score, saving weights')
+            print('new top validation score, saving weights', flush=True)
             model.save(os.path.join(model_out_dir, 'weights.p'))
             top_valid_score_epoch = epoch
         if top_valid_score is not None and epoch - top_valid_score_epoch > PATIENCE:
-            print(f'no validation improvement since %{top_valid_score_epoch}, early stopping')
+            print(f'no validation improvement since %{top_valid_score_epoch}, early stopping', flush=True)
             break
 
 
@@ -87,7 +88,7 @@ def validate(model, dataset, run, qrelf, epoch, model_out_dir):
 
 def score_docsMZ(model, MZdatafame):
     scores=[]
-    with torch.no_grad():
+    with torch.no_grad(), tqdm(total=MZdatafame.shape[0], ncols=80, desc="scoring", leave=False) as pbar:
         model.eval()
         BATCH_SIZE = 16
         for records in data.iter_valid_recordsMZ(model, MZdatafame, BATCH_SIZE):
@@ -95,7 +96,9 @@ def score_docsMZ(model, MZdatafame):
                            records['query_mask'],
                            records['doc_tok'],
                            records['doc_mask'])
-            scores.extend( allScores.reshape(1, -1).squeeze().tolist() )
+            thelist= allScores.reshape(1, -1).squeeze().tolist()
+            scores.extend( thelist )
+            pbar.update(len(thelist))
     return scores
     
 
