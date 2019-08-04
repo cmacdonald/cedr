@@ -7,6 +7,7 @@ import pickle
 import data
 import argparse
 import train
+import threading
 
 GPU=True
 
@@ -20,9 +21,10 @@ GPU=True
 class CEDR(Resource):
     
 
-    def __init__(self, CEDRmodel):
+    def __init__(self, CEDRmodel, lock):
         self.model = CEDRmodel
         self.requestCount = 0
+        self.lock = lock
     
     def get(self):
         return "Invalid request - only POST supported, you called get. " + str(self.requestCount) + " requests served thus far", 400
@@ -46,7 +48,9 @@ class CEDR(Resource):
             'id_left': [args['qid']]*len(args['docs']),
             'id_right': args['docnos']
         })
-        scores = train.score_docsMZ(self.model, df) 
+        self.lock.acquire()
+        scores = train.score_docsMZ(self.model, df)
+        self.lock.release() 
         response = jsonify(scores)
         response.status_code = 200
         return response
@@ -79,7 +83,7 @@ def main_cli():
     app = Flask(__name__)
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
     api = Api(app)
-    api.add_resource(CEDR, "/", resource_class_kwargs={'CEDRmodel':model})
+    api.add_resource(CEDR, "/", resource_class_kwargs={'CEDRmodel':model, 'lock':threading.Lock()})
     app.run(host='0.0.0.0',port=args.port,debug=True)
 
 if __name__ == '__main__':
