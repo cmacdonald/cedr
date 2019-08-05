@@ -46,39 +46,39 @@ def main(trainTable, validTable, qrelsFile, modelName, bertWeights, saveDirector
     #import pdb; pdb.set_trace()
     train.main(model, dataset, train_pairs, qrels, valid_run, qrelsFile, saveDirectory)
 
-def slidingWindow(sequence, winSize, step):
-    return [x for x in list(more_itertools.windowed(sequence,n=winSize, step=step)) if x[-1] is not None]
-
-def applyPassaging(df, passageLength, passageStride):
-    newRows=[]
-    labelCount=defaultdict(int)
-    re.compile("\\s+")
-    with tqdm('passsaging', total=len(df), ncols=80, desc='passaging', leave=False) as pbar:
-        for index, row in df.iterrows():
-            toks = re.split("\s+", row['text_right'])
-            len_d = len(toks)
-            if len_d < passageLength:
-                newRow = row.drop(labels=['title'])
-                newRow['text_right'] = str(row['title']) + ' '.join(toks)
-                labelCount[row['label']] += 1
-                newRows.append(newRow)
-            else:
-                passageCount=0
-                for passage in slidingWindow(toks, passageLength, passageStride):
-                    newRow = row.drop(labels=['title'])
-                    newRow['text_right'] = str(row['title']) + ' ' + ' '.join(passage)
-                    labelCount[row['label']] += 1
-                    newRows.append(newRow)
-                    passageCount+=1
-                #print(row["id_right"] + " " + str(passageCount))
-            pbar.update(1)
-    print(labelCount)
-    newDF = pd.DataFrame(newRows)
-    newDF['text_left'].fillna('',inplace=True)
-    newDF['text_right'].fillna('',inplace=True)
-    newDF['id_left'].fillna('',inplace=True)
-    newDF.reset_index(inplace=True,drop=True)
-    return newDF
+# def slidingWindow(sequence, winSize, step):
+#     return [x for x in list(more_itertools.windowed(sequence,n=winSize, step=step)) if x[-1] is not None]
+#
+# def applyPassaging(df, passageLength, passageStride):
+#     newRows=[]
+#     labelCount=defaultdict(int)
+#     re.compile("\\s+")
+#     with tqdm('passsaging', total=len(df), ncols=80, desc='passaging', leave=False) as pbar:
+#         for index, row in df.iterrows():
+#             toks = re.split("\s+", row['text_right'])
+#             len_d = len(toks)
+#             if len_d < passageLength:
+#                 newRow = row.drop(labels=['title'])
+#                 newRow['text_right'] = str(row['title']) + ' '.join(toks)
+#                 labelCount[row['label']] += 1
+#                 newRows.append(newRow)
+#             else:
+#                 passageCount=0
+#                 for passage in slidingWindow(toks, passageLength, passageStride):
+#                     newRow = row.drop(labels=['title'])
+#                     newRow['text_right'] = str(row['title']) + ' ' + ' '.join(passage)
+#                     labelCount[row['label']] += 1
+#                     newRows.append(newRow)
+#                     passageCount+=1
+#                 #print(row["id_right"] + " " + str(passageCount))
+#             pbar.update(1)
+#     print(labelCount)
+#     newDF = pd.DataFrame(newRows)
+#     newDF['text_left'].fillna('',inplace=True)
+#     newDF['text_right'].fillna('',inplace=True)
+#     newDF['id_left'].fillna('',inplace=True)
+#     newDF.reset_index(inplace=True,drop=True)
+#     return newDF
 
 def main_cli():
     parser = argparse.ArgumentParser('CEDR model training and validation from a single dataframe')

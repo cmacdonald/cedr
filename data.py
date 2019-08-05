@@ -3,6 +3,8 @@ from tqdm import tqdm
 import torch
 
 GPU=True
+passageLength = 150
+passageStride = 75
 
 def read_datafiles(files):
     queries = {}
@@ -62,7 +64,7 @@ def iter_train_pairs(model, dataset, train_pairs, qrels, batch_size):
 def slidingWindow(sequence, winSize, step):
     return [x for x in list(more_itertools.windowed(sequence,n=winSize, step=step)) if x[-1] is not None]
 
-def applyPassaging(doc, passageLength, passageStride, title):
+def applyPassaging(doc, title, passageLength, passageStride):
     newRows=[]
     toks = re.split(r"\s+", doc)
     len_d = len(toks)
@@ -98,8 +100,8 @@ def _iter_train_pairs(model, dataset, train_pairs, qrels):
             neg_id = random.choice(neg_ids)
             query_tok = model.tokenize(ds_queries[qid])
             # pos-id.split('-') + ' ' +
-            pos_doc = applyPassaging(ds_docs.get(pos_id),ds_titles.get(pos_id))
-            neg_doc = applyPassaging(ds_docs.get(neg_id),ds_titles.get(neg_id))
+            pos_doc = applyPassaging(ds_docs.get(pos_id),ds_titles.get(pos_id), passageLength, passageStride)
+            neg_doc = applyPassaging(ds_docs.get(neg_id),ds_titles.get(neg_id), passageLength, passageStride)
 
             if pos_doc is None:
                 tqdm.write(f'missing doc {pos_id}! Skipping')
