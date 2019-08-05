@@ -10,21 +10,35 @@ from tqdm import tqdm
 import more_itertools
 import re
 
-CUT_OFF = 250
+MAXRANK = 250
 def main(trainTable, validTable, qrelsFile, modelName, bertWeights, saveDirectory):
     docs={}
     queries={}
     titles={}
-
-    for index, row in trainTable.head(CUT_OFF).iterrows():
+    currentQid = None
+    for index, row in trainTable.iterrows():
+        if currentQid is None or currentQid != row['id_left']:
+            rank=0
+            currentQid = row['id_left']
+        rank+=1
         queries[row['id_left']] = row['text_left']
         docs[row['id_right']] = row['text_right']
         titles[row['id_right']] = row['title']
-    for index, row in validTable.head(CUT_OFF).iterrows():
+        if (rank > MAXRANK):
+            continue
+    currentQid = None
+    for index, row in validTable.iterrows():
+        if currentQid is None or currentQid != row['id_left']:
+            rank=0
+            currentQid = row['id_left']
+        rank+=1
         queries[row['id_left']] = row['text_left']
         docs[row['id_right']] = row['text_right']
         titles[row['id_right']] = row['title']
-
+        if (rank > MAXRANK):
+            continue
+            
+            
     dataset=(queries, docs, titles)
     valid_run={}
     for index, row in validTable.iterrows():
