@@ -70,12 +70,12 @@ def applyPassaging(doc, title, passageLength, passageStride):
     toks = re.split(r"\s+", doc)
     len_d = len(toks)
     if len_d < passageLength:
-        newRow = title + ' '.join(toks)
+        newRow = str(title) + ' '.join(toks)
         newRows.append(newRow)
     else:
         passageCount=0
         for passage in slidingWindow(toks, passageLength, passageStride):
-            newRow = title + ' '.join(passage)
+            newRow = str(title) + ' '.join(passage)
             newRows.append(newRow)
     return newRows
 
