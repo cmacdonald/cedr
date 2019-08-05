@@ -96,9 +96,9 @@ def main_cli():
     print(trainTable.columns.values)
     print("Reading validation file %s" % args.validTSV[0], flush=True)
     validTable = pd.read_csv(args.validTSV[0], sep='\t', header=0, error_bad_lines = False, index_col=False)
-    if (args.passage == "max" or args.passage == "sum"):
-      applyPassaging(trainTable, 150, 75)
-      applyPassaging(validTable, 150, 75)
+    # if (args.passage == "max" or args.passage == "sum"):
+    #   trainTable = applyPassaging(trainTable, 150, 75)
+    #   validTable = applyPassaging(validTable, 150, 75)
     train.aggregation = args.passage
     os.makedirs(args.model_out_dir, exist_ok=True)
     signal.signal(signal.SIGUSR1, lambda sig, stack: traceback.print_stack(stack))
