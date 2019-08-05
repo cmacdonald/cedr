@@ -21,6 +21,7 @@ MODEL_MAP = {
     'cedr_drmm': modeling.CedrDrmmRanker
 }
 
+aggregation = 'first'
 
 def main(model, dataset, train_pairs, qrels, valid_run, qrelf, model_out_dir):
     LR = 0.001
@@ -112,8 +113,20 @@ def run_model(model, dataset, run, runf, desc='valid'):
                            records['query_mask'],
                            records['doc_tok'],
                            records['doc_mask'])
-            for qid, did, score in zip(records['query_id'], records['doc_id'], scores):
-                rerank_run.setdefault(qid, {})[did] = score.item()
+            if aggregation == 'first':
+                for qid, did, score in zip(records['query_id'], records['doc_id'], scores):
+                    if rerank_run.setdefault(qid, defaultdict(int))[did] == 0:
+                        rerank_run.setdefault(qid, defaultdict(int))[did] = score.item()
+            elif aggregation == 'sum':
+                #should be 0 if the document hasnt been seen before
+                for qid, did, score in zip(records['query_id'], records['doc_id'], scores):
+                    rerank_run.setdefault(qid, defaultdict(int))[did] += score.item()
+            elif aggregation == 'max':
+                for qid, did, score in zip(records['query_id'], records['doc_id'], scores):
+                    #should be 0 if the document hasnt been seen before
+                    currentScore = rerank_run.setdefault(qid, defaultdict(int))[did]
+                    if score.item() > currentScore:
+                        rerank_run.setdefault(qid, defaultdict(int))[did] = score.item()
             pbar.update(len(records['query_id']))
     with open(runf, 'wt') as runfile:
         for qid in rerank_run:
