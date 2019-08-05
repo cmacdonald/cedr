@@ -10,16 +10,17 @@ from tqdm import tqdm
 import more_itertools
 import re
 
+CUT_OFF = 250
 def main(trainTable, validTable, qrelsFile, modelName, bertWeights, saveDirectory):
     docs={}
     queries={}
     titles={}
 
-    for index, row in trainTable.iterrows():
+    for index, row in trainTable.head(CUT_OFF).iterrows():
         queries[row['id_left']] = row['text_left']
         docs[row['id_right']] = row['text_right']
         titles[row['id_right']] = row['title']
-    for index, row in validTable.iterrows():
+    for index, row in validTable.head(CUT_OFF).iterrows():
         queries[row['id_left']] = row['text_left']
         docs[row['id_right']] = row['text_right']
         titles[row['id_right']] = row['title']
