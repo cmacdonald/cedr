@@ -71,15 +71,14 @@ def _iter_train_pairs(model, dataset, train_pairs, qrels):
             if len(pos_ids) == 0:
                 print("no positive labels for query %s " % qid)
                 continue
-            random.shuffle(pos_ids)
-            pos_id = pos_ids[0]
+            pos_id = random.choice(pos_ids)
+            pos_ids_lookup = set(pos_ids)
             pos_ids = set(pos_ids)
-            neg_ids = [did for did in train_pairs[qid] if did not in pos_ids]
+            neg_ids = [did for did in train_pairs[qid] if did not in pos_ids_lookup]
             if len(neg_ids) == 0:
                 print("no negative labels for query %s " % qid)
                 continue
-            random.shuffle(neg_ids)
-            neg_id = neg_ids[0]
+            neg_id = random.choice(neg_ids)
             query_tok = model.tokenize(ds_queries[qid])
             pos_doc = ds_docs.get(pos_id)
             neg_doc = ds_docs.get(neg_id)
@@ -103,6 +102,7 @@ def iter_valid_records(model, dataset, run, batch_size):
         if len(batch['query_id']) == batch_size:
             yield _pack_n_ship(batch)
             batch = {'query_id': [], 'doc_id': [], 'query_tok': [], 'doc_tok': []}
+    # final batch
     if len(batch['query_id']) > 0:
         yield _pack_n_ship(batch)
 
