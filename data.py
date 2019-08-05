@@ -59,10 +59,27 @@ def iter_train_pairs(model, dataset, train_pairs, qrels, batch_size):
     if len(batch['query_id']) > 0:
         yield _pack_n_ship(batch)
 
+def slidingWindow(sequence, winSize, step):
+    return [x for x in list(more_itertools.windowed(sequence,n=winSize, step=step)) if x[-1] is not None]
+
+def applyPassaging(doc, passageLength, passageStride, title):
+    newRows=[]
+    toks = re.split(r"\s+", doc)
+    len_d = len(toks)
+    if len_d < passageLength:
+        newRow = title + ' '.join(toks)
+        newRows.append(newRow)
+    else:
+        passageCount=0
+        for passage in slidingWindow(toks, passageLength, passageStride):
+            newRow = title + ' '.join(passage)
+            newRows.append(newRow)
+    return newRows
+
 
 
 def _iter_train_pairs(model, dataset, train_pairs, qrels):
-    ds_queries, ds_docs = dataset
+    ds_queries, ds_docs, ds_titles = dataset
     while True:
         qids = list(train_pairs.keys())
         random.shuffle(qids)
@@ -80,16 +97,19 @@ def _iter_train_pairs(model, dataset, train_pairs, qrels):
                 continue
             neg_id = random.choice(neg_ids)
             query_tok = model.tokenize(ds_queries[qid])
-            pos_doc = ds_docs.get(pos_id)
-            neg_doc = ds_docs.get(neg_id)
+            # pos-id.split('-') + ' ' +
+            pos_doc = applyPassaging(ds_docs.get(pos_id),ds_titles.get(pos_id))
+            neg_doc = applyPassaging(ds_docs.get(neg_id),ds_titles.get(neg_id))
+
             if pos_doc is None:
                 tqdm.write(f'missing doc {pos_id}! Skipping')
                 continue
             if neg_doc is None:
                 tqdm.write(f'missing doc {neg_id}! Skipping')
                 continue
-            yield qid, pos_id, query_tok, model.tokenize(pos_doc)
-            yield qid, neg_id, query_tok, model.tokenize(neg_doc)
+            for pos,neg in zip(pos_doc,neg_doc):
+                yield qid, pos_id, query_tok, model.tokenize(pos)
+                yield qid, neg_id, query_tok, model.tokenize(neg)
 
 
 def iter_valid_records(model, dataset, run, batch_size):
@@ -120,7 +140,7 @@ def iter_valid_recordsMZ(model, dataframe, batch_size):
         yield _pack_n_ship(batch)
 
 def _iter_valid_records(model, dataset, run):
-    ds_queries, ds_docs = dataset
+    ds_queries, ds_docs, ds_titles = dataset
     for qid in run:
         query_tok = model.tokenize(ds_queries[qid])
         for did in run[qid]:

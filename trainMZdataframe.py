@@ -10,19 +10,21 @@ from tqdm import tqdm
 import more_itertools
 import re
 
-
 def main(trainTable, validTable, qrelsFile, modelName, bertWeights, saveDirectory):
     docs={}
     queries={}
+    titles={}
 
     for index, row in trainTable.iterrows():
         queries[row['id_left']] = row['text_left']
         docs[row['id_right']] = row['text_right']
+        titles[row['id_right']] = row['title']
     for index, row in validTable.iterrows():
         queries[row['id_left']] = row['text_left']
         docs[row['id_right']] = row['text_right']
+        titles[row['id_right']] = row['title']
 
-    dataset=(queries, docs)
+    dataset=(queries, docs, titles)
     valid_run={}
     for index, row in validTable.iterrows():
         valid_run.setdefault(row['id_left'], {})[row['id_right']] = float(1)
