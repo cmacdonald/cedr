@@ -1,6 +1,7 @@
 import random
 from tqdm import tqdm
 import torch
+import re
 
 GPU=True
 passageLength = 150
