@@ -10,6 +10,7 @@ from tqdm import tqdm
 import more_itertools
 import re
 
+MAXRANK=200
 
 def main(trainTable, validTable, qrelsFile, modelName, bertWeights, saveDirectory):
     docs={}
@@ -51,8 +52,18 @@ def applyPassaging(df, passageLength, passageStride):
     newRows=[]
     labelCount=defaultdict(int)
     re.compile("\\s+")
+    currentQid=None
+    rank=0
     with tqdm('passsaging', total=len(df), ncols=80, desc='passaging', leave=False) as pbar:
         for index, row in df.iterrows():
+            pbar.update(1)
+            qid = row['id_left']
+            if currentQid is None or currentQid != qid:
+                rank=0
+                currentQid = qid
+            rank+=1
+            if (rank > MAXRANK):
+                continue
             toks = re.split("\s+", row['text_right'])
             len_d = len(toks)
             if len_d < passageLength:
@@ -69,7 +80,7 @@ def applyPassaging(df, passageLength, passageStride):
                     newRows.append(newRow)
                     passageCount+=1
                 #print(row["id_right"] + " " + str(passageCount))
-            pbar.update(1)
+            
     print(labelCount)
     newDF = pd.DataFrame(newRows)
     newDF['text_left'].fillna('',inplace=True)
