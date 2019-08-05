@@ -5,6 +5,11 @@ import os
 import pandas as pd
 import signal
 import traceback
+from collections import defaultdict
+from tqdm import tqdm
+import more_itertools
+import re
+
 
 def main(trainTable, validTable, qrelsFile, modelName, bertWeights, saveDirectory):
     docs={}
@@ -39,41 +44,39 @@ def main(trainTable, validTable, qrelsFile, modelName, bertWeights, saveDirector
     #import pdb; pdb.set_trace()
     train.main(model, dataset, train_pairs, qrels, valid_run, qrelsFile, saveDirectory)
 
-def slidingWindow(sequence,winSize,step=1):
-    """Returns a generator that will iterate through
-    the defined chunks of input sequence. Input sequence
-    must be sliceable."""
-
-    # Verify the inputs
-    if not ((type(winSize) == type(0)) and (type(step) == type(0))):
-        raise Exception("**ERROR** type(winSize) and type(step) must be int.")
-    if step > winSize:
-        raise Exception("**ERROR** step must not be larger than winSize.")
-    if winSize > len(sequence):
-        raise Exception("**ERROR** winSize must not be larger than sequence length.")
-
-    # Pre-compute number of chunks to emit
-    numOfChunks = ((len(sequence)-winSize)/step)+1
-
-    # Do the work
-    for i in range(0,numOfChunks*step,step):
-        yield sequence[i:i+winSize]
+def slidingWindow(sequence, winSize, step):
+    return [x for x in list(more_itertools.windowed(sequence,n=winSize, step=step)) if x[-1] is not None]
 
 def applyPassaging(df, passageLength, passageStride):
     newRows=[]
-    for index, row in df.iterrows():
-        toks = row['text_right'].split(r"\s+")
-        len_d = len(toks)
-        if len_d < passageLength:
-            newRow = row.drop(labels=['titles'])
-            newRow['text_right'] = row['titles'] + ' '.join(toks)
-            newRows.append(newRow)
-        for passage in slidingWindow(toks, passageLength, passageStride):
-            newRow = row.drop(labels=['titles'])
-            newRow['text_right'] = row['titles'] + ' ' + ' '.join(passage)
-            newRows.append(newRow)
-    return pd.DataFrame(newRows)
-
+    labelCount=defaultdict(int)
+    re.compile("\\s+")
+    with tqdm('passsaging', total=len(df), ncols=80, desc='passaging', leave=False) as pbar:
+        for index, row in df.iterrows():
+            toks = re.split("\s+", row['text_right'])
+            len_d = len(toks)
+            if len_d < passageLength:
+                newRow = row.drop(labels=['title'])
+                newRow['text_right'] = str(row['title']) + ' '.join(toks)
+                labelCount[row['label']] += 1
+                newRows.append(newRow)
+            else:
+                passageCount=0
+                for passage in slidingWindow(toks, passageLength, passageStride):
+                    newRow = row.drop(labels=['title'])
+                    newRow['text_right'] = str(row['title']) + ' ' + ' '.join(passage)
+                    labelCount[row['label']] += 1
+                    newRows.append(newRow)
+                    passageCount+=1
+                #print(row["id_right"] + " " + str(passageCount))
+            pbar.update(1)
+    print(labelCount)
+    newDF = pd.DataFrame(newRows)
+    newDF['text_left'].fillna('',inplace=True)
+    newDF['text_right'].fillna('',inplace=True)
+    newDF['id_left'].fillna('',inplace=True)
+    newDF.reset_index(inplace=True,drop=True)
+    return newDF
 
 def main_cli():
     parser = argparse.ArgumentParser('CEDR model training and validation from a single dataframe')
@@ -87,10 +90,10 @@ def main_cli():
     args = parser.parse_args()
 
     print("Reading training file %s" % args.trainTSV[0], flush=True)
-    trainTable = pd.read_csv(args.trainTSV[0], sep='\t', header=0)
+    trainTable = pd.read_csv(args.trainTSV[0], sep='\t', header=0, error_bad_lines = False, index_col=False)
     print(trainTable.columns.values)
     print("Reading validation file %s" % args.validTSV[0], flush=True)
-    validTable = pd.read_csv(args.validTSV[0], sep='\t', header=0)
+    validTable = pd.read_csv(args.validTSV[0], sep='\t', header=0, error_bad_lines = False, index_col=False)
     if (args.passage == "max" or args.passage == "sum"):
       applyPassaging(trainTable, 150, 75)
       applyPassaging(validTable, 150, 75)
