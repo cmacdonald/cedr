@@ -48,7 +48,7 @@ def main(model, dataset, train_pairs, qrels, valid_run, qrelf, model_out_dir):
             model.save(os.path.join(model_out_dir, 'weights.p'))
             top_valid_score_epoch = epoch
         if top_valid_score is not None and epoch - top_valid_score_epoch > PATIENCE:
-            print(f'no validation improvement since %{top_valid_score_epoch}, early stopping', flush=True)
+            print(f'no validation improvement since {top_valid_score_epoch}, early stopping', flush=True)
             break
 
 
