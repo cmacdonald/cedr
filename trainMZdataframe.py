@@ -5,7 +5,6 @@ import os
 import pandas as pd
 import signal
 import traceback
-from collections import defaultdict
 from tqdm import tqdm
 import more_itertools
 import re
