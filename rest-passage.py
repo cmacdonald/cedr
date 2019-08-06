@@ -124,7 +124,7 @@ class CEDR(Resource):
         # print('len_scores',len(scores))
         scores = self.passage_to_docs(passage,scores)
         # scores = scores.flatten()
-        scores = [s.tolist() for s in scores.flatten()]
+        scores = [s.tolist() for s in scores]
         # print('len_scores',len(scores))
         response = jsonify(scores)
         response.status_code = 200
