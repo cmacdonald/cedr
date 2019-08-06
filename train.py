@@ -99,7 +99,7 @@ def score_docsMZ(model, MZdatafame):
                            records['query_mask'],
                            records['doc_tok'],
                            records['doc_mask'])
-            thelist= allScores.reshape(1, -1).squeeze().tolist()
+            thelist= allScores.flatten().tolist()
             scores.extend( thelist )
             pbar.update(len(thelist))
     return scores
