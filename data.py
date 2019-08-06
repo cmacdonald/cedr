@@ -3,7 +3,6 @@ from tqdm import tqdm
 import torch
 import re
 import more_itertools
-from collections import defaultdict
 
 
 GPU=True
