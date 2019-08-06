@@ -3,6 +3,7 @@ from flask_restful import Api, Resource, reqparse
 import pandas as pd
 import sys
 import pickle
+import re 
 
 import data
 import argparse
@@ -10,6 +11,8 @@ import train
 import threading
 
 GPU=True
+passageLength = 150
+passageStride = 75
 
 #This script make an HTTP REST endpoint that exposes a POST method that can score documents:
 #the post expected a JSON object in the following format:
@@ -29,35 +32,22 @@ class CEDR(Resource):
     def get(self):
         return "Invalid request - only POST supported, you called get. " + str(self.requestCount) + " requests served thus far", 400
 
+    def slidingWindow(self, sequence, winSize, step):
+        return [x for x in list(more_itertools.windowed(sequence,n=winSize, step=step)) if x[-1] is not None]
 
-    def generating_passage(self,dataframe):
-        # dataframe = np.array(dataframe)
-        new_df = []
-        #from itertools import tee, izip
-
-        print('len(id_right)',len(np.unique(np.array(dataframe['id_right']))))
-
+    def applyPassaging(self, dataframe, passageLength, passageStride):
+        newRows=[]
         for i, d in dataframe.iterrows():
-            # saparating docs into tokens, the first token is usually url
-            # so the doc starts with [1:]
-            t = d['text_right'].split(' ')[1:]
-            len_d = len(t)
-            if len_d <= 75:
-                text = d
-                text['text_right'] = d['titles'] + ' ' +' '.join(t)
-                text = text.drop(labels=['titles'])
-                new_df.append(text)
-                continue
-            if len_d%75 :
-                len_d = int(len_d/75)
+            toks = re.split(r"\s+", d['text_right'])
+            len_d = len(toks)
+            if len_d < passageLength:
+                newRow = str(dataframe['title']) + ' '.join(toks)
+                newRows.append(newRow)
             else:
-                len_d = int(len_d/75) - 1
-            for i in range(len_d):
-                text = d
-                text['text_right'] = d['titles'] + ' ' +' '.join(t[i*75: min(75*(i+2),len(t))])
-                text = text.drop(labels=['titles'])
-                new_df.append(text)
-        new_df = pd.DataFrame(new_df)
+                for passage in self.slidingWindow(toks, passageLength, passageStride):
+                    newRow = str(dataframe['title']) + ' '.join(passage)
+                    newRows.append(newRow)
+        new_df = pd.DataFrame(newRows)
         new_df['text_left'].fillna('',inplace=True)
         new_df['text_right'].fillna('',inplace=True)
         new_df['id_left'].fillna('',inplace=True)
@@ -65,14 +55,13 @@ class CEDR(Resource):
         new_df.reset_index(inplace=True,drop=True)
         return new_df
 
+
     def passage_to_docs(self,dataframe,scores):
         d_id = dataframe['id_right'][0]
         print('len(id_right)',len(np.unique(np.array(dataframe['id_right']))))
         ss = []
         s = []
         for score,(i,df) in zip(scores,dataframe.iterrows()):
-            #print(type(df['id_right']),type(d_id))
-
             if df['id_right'] == d_id:
                 s.append(score)
             else:
@@ -125,7 +114,7 @@ class CEDR(Resource):
 
         #print('len(id_right)',len(np.unique(np.array(df['id_right']))))
         # print('len_df',len(df))
-        passage = self.generating_passage(df)
+        passage = self.applyPassaging(df)
         # print('len_passage',len(passage))
         
         self.lock.acquire()
