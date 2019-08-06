@@ -61,27 +61,25 @@ class CEDR(Resource):
 
 
     def passage_to_docs(self,dataframe,scores):
-        d_id = dataframe['id_right'][0]
-        print('len(id_right)',len(np.unique(np.array(dataframe['id_right']))))
-        ss = []
-        s = []
-        for score,(i,row) in zip(scores,dataframe.iterrows()):
-            if row['id_right'] == d_id:
-                s.append(score)
-            else:
-                ss.append([np.mean(s),np.max(s), s[0]])
-                s = [score]
-                d_id = row['id_right']
-        ss.append([np.mean(s),np.max(s), s[0]])
-        ss = np.array(ss)
-        print(ss)
-        if self.score == 'mean':
-            return ss[:,0]
-        if self.score == 'max':
-            return ss[:,1]
-        if self.score == 'first':
-            return ss [:,2]
+        rerank_run = {}
 
+        if aggregation == 'first':
+            for qid, did, score in zip(dataframe['query_id'], dataframe['doc_id'], scores):
+                if rerank_run.setdefault(qid, defaultdict(int))[did] == 0:
+                    rerank_run.setdefault(qid, defaultdict(int))[did] = score.item()
+        elif aggregation == 'sum':
+            #should be 0 if the document hasnt been seen before
+            for qid, did, score in zip(dataframe['query_id'], dataframe['doc_id'], scores):
+                rerank_run.setdefault(qid, defaultdict(int))[did] += score.item()
+        elif aggregation == 'max':
+            for qid, did, score in zip(dataframe['query_id'], dataframe['doc_id'], scores):
+                #should be 0 if the document hasnt been seen before
+                currentScore = rerank_run.setdefault(qid, defaultdict(int))[did]
+                if score.item() > currentScore:
+                    rerank_run.setdefault(qid, defaultdict(int))[did] = score.item()
+        for qid in rerank_run:
+            scores = list(sorted(rerank_run[qid].items(), key=lambda x: (x[1], x[0]), reverse=True))
+        return scores 
 
 
     def post(self):
