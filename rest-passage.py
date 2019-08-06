@@ -10,6 +10,7 @@ import argparse
 import train
 import threading
 import more_itertools
+from collections import defaultdict
 
 GPU=True
 passageLength = 150
@@ -62,21 +63,20 @@ class CEDR(Resource):
 
     def passage_to_docs(self,dataframe,scores):
         rerank_run = {}
-
-        if aggregation == 'first':
-            for qid, did, score in zip(dataframe['query_id'], dataframe['doc_id'], scores):
+        if self.score == 'first':
+            for qid, did, score in zip(dataframe['id_left'], dataframe['id_right'], scores):
                 if rerank_run.setdefault(qid, defaultdict(int))[did] == 0:
-                    rerank_run.setdefault(qid, defaultdict(int))[did] = score.item()
-        elif aggregation == 'sum':
+                    rerank_run.setdefault(qid, defaultdict(int))[did] = score
+        elif self.score == 'sum':
             #should be 0 if the document hasnt been seen before
-            for qid, did, score in zip(dataframe['query_id'], dataframe['doc_id'], scores):
-                rerank_run.setdefault(qid, defaultdict(int))[did] += score.item()
-        elif aggregation == 'max':
-            for qid, did, score in zip(dataframe['query_id'], dataframe['doc_id'], scores):
+            for qid, did, score in zip(dataframe['id_right'], dataframe['id_right'], scores):
+                rerank_run.setdefault(qid, defaultdict(int))[did] += score
+        elif self.score == 'max':
+            for qid, did, score in zip(dataframe['id_right'], dataframe['id_right'], scores):
                 #should be 0 if the document hasnt been seen before
                 currentScore = rerank_run.setdefault(qid, defaultdict(int))[did]
-                if score.item() > currentScore:
-                    rerank_run.setdefault(qid, defaultdict(int))[did] = score.item()
+                if score > currentScore:
+                    rerank_run.setdefault(qid, defaultdict(int))[did] = score
         for qid in rerank_run:
             scores = list(sorted(rerank_run[qid].items(), key=lambda x: (x[1], x[0]), reverse=True))
         return scores 
