@@ -4,11 +4,12 @@ import pandas as pd
 import sys
 import pickle
 import re 
-
+import numpy as np
 import data
 import argparse
 import train
 import threading
+import more_itertools
 
 GPU=True
 passageLength = 150
@@ -24,10 +25,11 @@ passageStride = 75
 class CEDR(Resource):
     
 
-    def __init__(self, CEDRmodel, lock):
+    def __init__(self, CEDRmodel, lock, score):
         self.model = CEDRmodel
         self.requestCount = 0
         self.lock = lock
+        self.score = score
     
     def get(self):
         return "Invalid request - only POST supported, you called get. " + str(self.requestCount) + " requests served thus far", 400
@@ -41,11 +43,13 @@ class CEDR(Resource):
             toks = re.split(r"\s+", d['text_right'])
             len_d = len(toks)
             if len_d < passageLength:
-                newRow = str(dataframe['title']) + ' '.join(toks)
+                newRow = d.drop(labels=["title"])
+                newRow["text_right"] = str(dataframe['title']) + ' '.join(toks)
                 newRows.append(newRow)
             else:
                 for passage in self.slidingWindow(toks, passageLength, passageStride):
-                    newRow = str(dataframe['title']) + ' '.join(passage)
+                    newRow = d.drop(labels=["title"])
+                    newRow["text_right"] = str(dataframe['title']) + ' '.join(passage)
                     newRows.append(newRow)
         new_df = pd.DataFrame(newRows)
         new_df['text_left'].fillna('',inplace=True)
@@ -61,16 +65,16 @@ class CEDR(Resource):
         print('len(id_right)',len(np.unique(np.array(dataframe['id_right']))))
         ss = []
         s = []
-        for score,(i,df) in zip(scores,dataframe.iterrows()):
-            if df['id_right'] == d_id:
+        for score,(i,row) in zip(scores,dataframe.iterrows()):
+            if row['id_right'] == d_id:
                 s.append(score)
             else:
                 ss.append([np.mean(s),np.max(s), s[0]])
                 s = [score]
-                d_id = df['id_right']
+                d_id = row['id_right']
         ss.append([np.mean(s),np.max(s), s[0]])
         ss = np.array(ss)
-        print(len(ss))
+        print(ss)
         if self.score == 'mean':
             return ss[:,0]
         if self.score == 'max':
@@ -114,7 +118,7 @@ class CEDR(Resource):
 
         #print('len(id_right)',len(np.unique(np.array(df['id_right']))))
         # print('len_df',len(df))
-        passage = self.applyPassaging(df)
+        passage = self.applyPassaging(df, passageLength, passageStride)
         # print('len_passage',len(passage))
         
         self.lock.acquire()
@@ -144,6 +148,7 @@ def main_cli():
     parser.add_argument('--model', choices=train.MODEL_MAP.keys(), default='vanilla_bert')
     parser.add_argument('--model_weights', type=argparse.FileType('rb'))
     parser.add_argument('--port', default=5678)
+    parser.add_argument('--passage', choices=["first", "max", "sum"], default="first")
 
     data.GPU = GPU
     
@@ -158,7 +163,7 @@ def main_cli():
     app = Flask(__name__)
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
     api = Api(app)
-    api.add_resource(CEDR, "/", resource_class_kwargs={'CEDRmodel':model, 'lock':threading.Lock()})
+    api.add_resource(CEDR, "/", resource_class_kwargs={'CEDRmodel':model, 'lock':threading.Lock(), 'score' : args.passage})
     app.run(host='0.0.0.0',port=args.port,debug=True)
 
 if __name__ == '__main__':
