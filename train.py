@@ -137,6 +137,40 @@ def run_model(model, dataset, run, runf, desc='valid'):
             for i, (did, score) in enumerate(scores):
                 runfile.write(f'{qid} 0 {did} {i+1} {score} run\n')
 
+def run_rest(model, dataset, run, desc='valid',aggregation):
+    aggregation =aggregation
+    BATCH_SIZE = 16
+    rerank_run = defaultdict(lambda: defaultdict(int))
+    #a defauldict where the default values are defaultdicts, whose default values are 0, qid->did->score
+#     print(aggregation)
+    with torch.no_grad(), tqdm(total=sum(len(r) for r in run.values()), ncols=80, desc=desc, leave=False) as pbar:
+        model.eval()
+        for records in data.iter_valid_records(model, dataset, run, BATCH_SIZE):
+            scores = model(records['query_tok'],
+                           records['query_mask'],
+                           records['doc_tok'],
+                           records['doc_mask'])
+            if aggregation == 'first':
+                for qid, did, score in zip(records['query_id'], records['doc_id'], scores):
+                    if not did in rerank_run[qid]:
+                        rerank_run[qid][did] = score.item()
+            elif aggregation == 'sum':
+                for qid, did, score in zip(records['query_id'], records['doc_id'], scores):
+                    rerank_run[qid][did] += score.item()
+            elif aggregation == 'max':
+                for qid, did, score in zip(records['query_id'], records['doc_id'], scores):
+                    #should be 0 if the document hasnt been seen before
+                    if score.item() > rerank_run[qid][did]:
+                        rerank_run[qid][did] = score.item()
+            pbar.update(len(records['query_id']))
+    print(rerank_run[64527]["D414820"])
+    scores = []
+    for qid in rerank_run:
+        scores = list(sorted(rerank_run[qid].items(), key=lambda x: (x[1], x[0]), reverse=True))
+        for i, (did, score) in enumerate(scores):
+            scores.extend( score)
+    return scores
+
 
 def trec_eval(qrelf, runf, metric):
     trec_eval_f = 'bin/trec_eval'
