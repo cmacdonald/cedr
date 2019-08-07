@@ -68,7 +68,7 @@ def applyPassaging(df, passageLength, passageStride):
             len_d = len(toks)
             if len_d < passageLength:
                 newRow = row.drop(labels=['title'])
-                newRow['text_right'] = str(row['title']) + ' '.join(toks)
+                newRow['text_right'] = str(row['title']) + ' '+ ' '.join(toks)
                 labelCount[row['label']] += 1
                 newRows.append(newRow)
             else:
