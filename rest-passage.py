@@ -132,21 +132,26 @@ class CEDR(Resource):
 
         dataset=(queries, docs)
 
-        test_run={}
+        test_run=defaultdict(dict)
         for index, row in passage.iterrows():
-            test_run.setdefault(row['id_left'], {})[row['id_right']] = float(1)
-
+            test_run[row['id_left']][row['id_right']] = float(1)
         
         try:
             self.lock.acquire()
-            scores = train.run_rest(model, dataset, test_run, desc='rerank', aggregation = self.score)
+            rerank_run = train.score_model(self.model, dataset, test_run, desc='rerank', passageAgg = self.score)
 #             scores = train.score_docsMZ(self.model, passage)
         finally:
             self.lock.release() 
+
+        scores=[]
+        for row in df.iterrows():
+            scores.append(rerank_run[row["id_left"]][row["id_right"]])
+
+
         print(scores) 
         # print('len_scores',len(scores))
 #         scores = self.passage_to_docs(passage,df,scores)
-        scores = scores.flatten()
+        #scores = scores.flatten()
         #scores = [s.tolist() for s in scores]
         # print('len_scores',len(scores))
         response = jsonify(scores)

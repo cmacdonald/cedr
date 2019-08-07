@@ -48,7 +48,7 @@ def main(trainTable, validTable, qrelsFile, modelName, bertWeights, saveDirector
 def slidingWindow(sequence, winSize, step):
     return [x for x in list(more_itertools.windowed(sequence,n=winSize, step=step)) if x[-1] is not None]
 
-def applyPassaging(df, passageLength, passageStride):
+def applyPassaging(df, passageLength, passageStride, maxrank, labels=True):
     newRows=[]
     labelCount=defaultdict(int)
     re.compile("\\s+")
@@ -62,21 +62,23 @@ def applyPassaging(df, passageLength, passageStride):
                 rank=0
                 currentQid = qid
             rank+=1
-            if (rank > MAXRANK):
+            if maxrank > 0 and rank > maxrank:
                 continue
             toks = re.split("\s+", row['text_right'])
             len_d = len(toks)
             if len_d < passageLength:
                 newRow = row.drop(labels=['title'])
                 newRow['text_right'] = str(row['title']) + ' '+ ' '.join(toks)
-                labelCount[row['label']] += 1
+                if labels:
+                    labelCount[row['label']] += 1
                 newRows.append(newRow)
             else:
                 passageCount=0
                 for passage in slidingWindow(toks, passageLength, passageStride):
                     newRow = row.drop(labels=['title'])
                     newRow['text_right'] = str(row['title']) + ' ' + ' '.join(passage)
-                    labelCount[row['label']] += 1
+                    if labels:
+                        labelCount[row['label']] += 1
                     newRows.append(newRow)
                     passageCount+=1
                 #print(row["id_right"] + " " + str(passageCount))
@@ -106,8 +108,8 @@ def main_cli():
     print("Reading validation file %s" % args.validTSV[0], flush=True)
     validTable = pd.read_csv(args.validTSV[0], sep='\t', header=0, error_bad_lines = False, index_col=False)
     if args.passage == "max" or args.passage == "sum":
-      trainTable = applyPassaging(trainTable, 150, 75)
-      validTable = applyPassaging(validTable, 150, 75)
+      trainTable = applyPassaging(trainTable, 150, 75, MAXRANK)
+      validTable = applyPassaging(validTable, 150, 75, MAXRANK)
     train.aggregation = args.passage
     os.makedirs(args.model_out_dir, exist_ok=True)
     signal.signal(signal.SIGUSR1, lambda sig, stack: traceback.print_stack(stack))
