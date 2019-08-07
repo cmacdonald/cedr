@@ -107,8 +107,9 @@ def score_docsMZ(model, MZdatafame):
 
 def run_model(model, dataset, run, runf, desc='valid'):
     BATCH_SIZE = 16
-    rerank_run = defaultdict(defaultdict(int))
+    rerank_run = defaultdict(lambda: defaultdict(int))
     #a defauldict where the default values are defaultdicts, whose default values are 0, qid->did->score
+    print(aggregation)
     with torch.no_grad(), tqdm(total=sum(len(r) for r in run.values()), ncols=80, desc=desc, leave=False) as pbar:
         model.eval()
         for records in data.iter_valid_records(model, dataset, run, BATCH_SIZE):
