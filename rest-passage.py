@@ -62,23 +62,23 @@ class CEDR(Resource):
     #     return new_df
 
 
-    def passage_to_docs(self,passageDF, docDF,scores):
-        rerank_run = defaultdict(int)
-        if self.score == 'first':
-            for did, score in zip(passageDF['id_right'], scores):
-                if not did in rerank_run:
-                    rerank_run[did]=score
-        elif self.score == 'sum':
-            #should be 0 if the document hasnt been seen before
-            for did, score in zip(passageDF['id_right'], scores):
-                rerank_run[did] += score
-        elif self.score == 'max':
-            for did, score in zip(passageDF['id_right'], scores):
-                #should be 0 if the document hasnt been seen before
-                currentScore = rerank_run[did]
-                if score > currentScore:
-                    rerank_run[did] = score
-        return [rerank_run[row["id_right"]] for i, row in docDF.iterrows()] 
+#     def passage_to_docs(self,passageDF, docDF,scores):
+#         rerank_run = defaultdict(int)
+#         if self.score == 'first':
+#             for did, score in zip(passageDF['id_right'], scores):
+#                 if not did in rerank_run:
+#                     rerank_run[did]=score
+#         elif self.score == 'sum':
+#             #should be 0 if the document hasnt been seen before
+#             for did, score in zip(passageDF['id_right'], scores):
+#                 rerank_run[did] += score
+#         elif self.score == 'max':
+#             for did, score in zip(passageDF['id_right'], scores):
+#                 #should be 0 if the document hasnt been seen before
+#                 currentScore = rerank_run[did]
+#                 if score > currentScore:
+#                     rerank_run[did] = score
+#         return [rerank_run[row["id_right"]] for i, row in docDF.iterrows()] 
 
     def post(self):
         self.requestCount+=1
@@ -122,15 +122,31 @@ class CEDR(Resource):
         #for i, r in passage.iterrows():
         #    print(r["text_right"])
         
+        docs={}
+        queries={}
+
+        for index, row in passage.iterrows():
+            queries[row['id_left']] = row['text_left']
+            docs[row['id_right']] = row['text_right']
+
+
+        dataset=(queries, docs)
+
+        test_run={}
+        for index, row in passage.iterrows():
+            test_run.setdefault(row['id_left'], {})[row['id_right']] = float(1)
+
+        
         try:
             self.lock.acquire()
-            scores = train.score_docsMZ(self.model, passage)
+            scores = train.run_rest(model, dataset, test_run, desc='rerank', aggregation = self.score)
+#             scores = train.score_docsMZ(self.model, passage)
         finally:
             self.lock.release() 
         print(scores) 
         # print('len_scores',len(scores))
-        scores = self.passage_to_docs(passage,df,scores)
-        # scores = scores.flatten()
+#         scores = self.passage_to_docs(passage,df,scores)
+        scores = scores.flatten()
         #scores = [s.tolist() for s in scores]
         # print('len_scores',len(scores))
         response = jsonify(scores)
