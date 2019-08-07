@@ -9,51 +9,8 @@ from collections import defaultdict
 from tqdm import tqdm
 import more_itertools
 import re
+import trainMZdataframe
 
-
-def slidingWindow(sequence, winSize, step):
-    return [x for x in list(more_itertools.windowed(sequence,n=winSize, step=step)) if x[-1] is not None]
-
-def applyPassaging(df, passageLength, passageStride):
-    newRows=[]
-    labelCount=defaultdict(int)
-    re.compile("\\s+")
-    currentQid=None
-    rank=0
-    with tqdm('passsaging', total=len(df), ncols=80, desc='passaging', leave=False) as pbar:
-        for index, row in df.iterrows():
-            pbar.update(1)
-            qid = row['id_left']
-            if currentQid is None or currentQid != qid:
-                rank=0
-                currentQid = qid
-            rank+=1
-            if (rank > MAXRANK):
-                continue
-            toks = re.split("\s+", row['text_right'])
-            len_d = len(toks)
-            if len_d < passageLength:
-                newRow = row.drop(labels=['title'])
-                newRow['text_right'] = str(row['title']) + ' '.join(toks)
-                labelCount[row['label']] += 1
-                newRows.append(newRow)
-            else:
-                passageCount=0
-                for passage in slidingWindow(toks, passageLength, passageStride):
-                    newRow = row.drop(labels=['title'])
-                    newRow['text_right'] = str(row['title']) + ' ' + ' '.join(passage)
-                    labelCount[row['label']] += 1
-                    newRows.append(newRow)
-                    passageCount+=1
-                #print(row["id_right"] + " " + str(passageCount))
-            
-    print(labelCount)
-    newDF = pd.DataFrame(newRows)
-    newDF['text_left'].fillna('',inplace=True)
-    newDF['text_right'].fillna('',inplace=True)
-    newDF['id_left'].fillna('',inplace=True)
-    newDF.reset_index(inplace=True,drop=True)
-    return newDF
 
 
 def main_cli():
@@ -73,7 +30,7 @@ def main_cli():
     print(trainTable.columns.values)
     
     if args.passage == "max" or args.passage == "sum" or args.passage == "first":
-      testTable = applyPassaging(testTable, 150, 75)
+      testTable = trainMZdataframe.applyPassaging(testTable, 150, 75)
 
 
     train.aggregation = args.passage
