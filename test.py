@@ -20,7 +20,7 @@ def main_cli():
     # parser.add_argument('--run', type=argparse.FileType('rt'))
     parser.add_argument('--passage', choices=["first", "max", "sum"], default="first")
     parser.add_argument('--model_weights', type=argparse.FileType('rb'))
-    parser.add_argument('--out_path', type=argparse.FileType('wt'))
+    parser.add_argument('--out_path')
     args = parser.parse_args()
 
     model = train.MODEL_MAP[args.model]().cuda()
@@ -30,7 +30,7 @@ def main_cli():
     print(testTable.columns.values)
     
     if args.passage == "max" or args.passage == "sum" or args.passage == "first":
-      testTable = trainMZdataframe.applyPassaging(testTable, 150, 75)
+      testTable = trainMZdataframe.applyPassaging(testTable, 150, 75, 0)
 
 
     train.aggregation = args.passage

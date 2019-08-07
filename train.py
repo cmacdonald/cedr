@@ -130,6 +130,7 @@ def run_model(model, dataset, run, runf, desc='valid'):
                     if score.item() > rerank_run[qid][did]:
                         rerank_run[qid][did] = score.item()
             pbar.update(len(records['query_id']))
+    print(rerank_run[64527]["D414820"])
     with open(runf, 'wt') as runfile:
         for qid in rerank_run:
             scores = list(sorted(rerank_run[qid].items(), key=lambda x: (x[1], x[0]), reverse=True))

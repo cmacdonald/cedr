@@ -8,6 +8,7 @@ import numpy as np
 import data
 import argparse
 import train
+import trainMZdataframe
 import threading
 import more_itertools
 from collections import defaultdict
@@ -35,30 +36,30 @@ class CEDR(Resource):
     def get(self):
         return "Invalid request - only POST supported, you called get. " + str(self.requestCount) + " requests served thus far", 400
 
-    def slidingWindow(self, sequence, winSize, step):
-        return [x for x in list(more_itertools.windowed(sequence,n=winSize, step=step)) if x[-1] is not None]
+    # def slidingWindow(self, sequence, winSize, step):
+    #     return [x for x in list(more_itertools.windowed(sequence,n=winSize, step=step)) if x[-1] is not None]
 
-    def applyPassaging(self, dataframe, passageLength, passageStride):
-        newRows=[]
-        for i, r in dataframe.iterrows():
-            toks = re.split(r"\s+", r['text_right'])
-            len_d = len(toks)
-            if len_d < passageLength:
-                newRow = r.drop(labels=["title"])
-                newRow["text_right"] = str(r['title']) + ' ' + ' '.join(toks)
-                newRows.append(newRow)
-            else:
-                for passage in self.slidingWindow(toks, passageLength, passageStride):
-                    newRow = r.drop(labels=["title"])
-                    newRow["text_right"] = str(r['title']) + ' ' + ' '.join(passage)
-                    newRows.append(newRow)
-        new_df = pd.DataFrame(newRows)
-        new_df['text_left'].fillna('',inplace=True)
-        new_df['text_right'].fillna('',inplace=True)
-        new_df['id_left'].fillna('',inplace=True)
-        #print(new_df['text_right'],new_df['id_left'])
-        new_df.reset_index(inplace=True,drop=True)
-        return new_df
+    # def applyPassaging(self, dataframe, passageLength, passageStride):
+    #     newRows=[]
+    #     for i, r in dataframe.iterrows():
+    #         toks = re.split(r"\s+", r['text_right'])
+    #         len_d = len(toks)
+    #         if len_d < passageLength:
+    #             newRow = r.drop(labels=["title"])
+    #             newRow["text_right"] = str(r['title']) + ' ' + ' '.join(toks)
+    #             newRows.append(newRow)
+    #         else:
+    #             for passage in self.slidingWindow(toks, passageLength, passageStride):
+    #                 newRow = r.drop(labels=["title"])
+    #                 newRow["text_right"] = str(r['title']) + ' ' + ' '.join(passage)
+    #                 newRows.append(newRow)
+    #     new_df = pd.DataFrame(newRows)
+    #     new_df['text_left'].fillna('',inplace=True)
+    #     new_df['text_right'].fillna('',inplace=True)
+    #     new_df['id_left'].fillna('',inplace=True)
+    #     #print(new_df['text_right'],new_df['id_left'])
+    #     new_df.reset_index(inplace=True,drop=True)
+    #     return new_df
 
 
     def passage_to_docs(self,passageDF, docDF,scores):
@@ -113,7 +114,7 @@ class CEDR(Resource):
 
         #print('len(id_right)',len(np.unique(np.array(df['id_right']))))
         # print('len_df',len(df))
-        passage = self.applyPassaging(df, passageLength, passageStride)
+        passage = trainMZdataframe.applyPassaging(df, passageLength, passageStride, 0, False)
         pd.set_option('display.width', 1000)
         pd.options.display.max_colwidth = 200
         print('len_passage',len(passage))
