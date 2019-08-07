@@ -15,28 +15,39 @@ MAXRANK=200
 def main(trainTable, validTable, qrelsFile, modelName, bertWeights, saveDirectory):
     docs={}
     queries={}
+    valid_run={}
+    qrels={}
 
+    print("Constructing CEDR datastructures from dataframes", flush=True)
+    #with tqdm('reformulation', total=3*len(trainTable) + 3*len(validTable), ncols=80, desc='passaging', leave=False) as pbar:
     for index, row in trainTable.iterrows():
         queries[row['id_left']] = row['text_left']
         docs[row['id_right']] = row['text_right']
+        #tqdm.update(1)
+
     for index, row in validTable.iterrows():
         queries[row['id_left']] = row['text_left']
         docs[row['id_right']] = row['text_right']
+        #tqdm.update(1)
 
     dataset=(queries, docs)
-    valid_run={}
+    
     for index, row in validTable.iterrows():
         valid_run.setdefault(row['id_left'], {})[row['id_right']] = float(1)
+        #tqdm.update(1)
 
     train_pairs={}
     for index, row in trainTable.iterrows():
         train_pairs.setdefault(row['id_left'], {})[row['id_right']] = 1
+        #tqdm.update(1)
 
-    qrels={}
+    
     for index, row in trainTable.iterrows():
         qrels.setdefault(row['id_left'], {})[row['id_right']] = int(row['label'])
+        #tqdm.update(1)
     for index, row in validTable.iterrows():
         qrels.setdefault(row['id_left'], {})[row['id_right']] = int(row['label'])
+        #tqdm.update(1)
 
     model = train.MODEL_MAP[modelName]().cuda()
 
@@ -74,8 +85,9 @@ def applyPassaging(df, passageLength, passageStride, maxrank, labels=True):
                 newRows.append(newRow)
             else:
                 passageCount=0
-                for passage in slidingWindow(toks, passageLength, passageStride):
+                for i, passage in enumerate( slidingWindow(toks, passageLength, passageStride)):
                     newRow = row.drop(labels=['title'])
+                    newRow['id_right'] = row['id_right'] + "%p" + str(i)
                     newRow['text_right'] = str(row['title']) + ' ' + ' '.join(passage)
                     if labels:
                         labelCount[row['label']] += 1
@@ -109,7 +121,7 @@ def main_cli():
     validTable = pd.read_csv(args.validTSV[0], sep='\t', header=0, error_bad_lines = False, index_col=False)
     if args.passage == "max" or args.passage == "sum":
       trainTable = applyPassaging(trainTable, 150, 75, MAXRANK)
-      validTable = applyPassaging(validTable, 150, 75, MAXRANK)
+      validTable = applyPassaging(validTable, 150, 75, 50)
     train.aggregation = args.passage
     os.makedirs(args.model_out_dir, exist_ok=True)
     signal.signal(signal.SIGUSR1, lambda sig, stack: traceback.print_stack(stack))

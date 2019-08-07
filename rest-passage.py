@@ -128,8 +128,7 @@ class CEDR(Resource):
         for index, row in passage.iterrows():
             queries[row['id_left']] = row['text_left']
             docs[row['id_right']] = row['text_right']
-
-
+        
         dataset=(queries, docs)
 
         test_run=defaultdict(dict)
@@ -144,8 +143,10 @@ class CEDR(Resource):
             self.lock.release() 
 
         scores=[]
-        for row in df.iterrows():
-            scores.append(rerank_run[row["id_left"]][row["id_right"]])
+        #print(rerank_run)
+        for i, row in df.iterrows():
+            did=row["id_right"]
+            scores.append(rerank_run[row["id_left"]][did])
 
 
         print(scores) 

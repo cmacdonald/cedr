@@ -108,7 +108,7 @@ def score_docsMZ(model, MZdatafame):
 
 
 def run_model(model, dataset, run, runf, desc='valid'):
-    rerank_run = score_model(model, dataset, run, runf, aggregation, desc)
+    rerank_run = score_model(model, dataset, run, aggregation, desc)
     with open(runf, 'wt') as runfile:
         for qid in rerank_run:
             scores = list(sorted(rerank_run[qid].items(), key=lambda x: (x[1], x[0]), reverse=True))
@@ -118,25 +118,29 @@ def run_model(model, dataset, run, runf, desc='valid'):
 def score_model(model, dataset, run, passageAgg, desc='valid'):
     BATCH_SIZE = 16
     passageAgg
-    rerank_run = defaultdict(lambda: defaultdict(int))
+    rerank_run = defaultdict(lambda: defaultdict(float))
     #a defauldict where the default values are defaultdicts, whose default values are 0, qid->did->score
-    print(aggregation)
     with torch.no_grad(), tqdm(total=sum(len(r) for r in run.values()), ncols=80, desc=desc, leave=False) as pbar:
         model.eval()
         for records in data.iter_valid_records(model, dataset, run, BATCH_SIZE):
+
             scores = model(records['query_tok'],
                            records['query_mask'],
                            records['doc_tok'],
                            records['doc_mask'])
             if passageAgg == 'first':
-                for qid, did, score in zip(records['query_id'], records['doc_id'], scores):
+                for qid, pid, score in zip(records['query_id'], records['doc_id'], scores):
+                    did=pid.split("%p")[0]
                     if not did in rerank_run[qid]:
                         rerank_run[qid][did] = score.item()
             elif passageAgg == 'sum':
-                for qid, did, score in zip(records['query_id'], records['doc_id'], scores):
+                for qid, pid, score in zip(records['query_id'], records['doc_id'], scores):
+                    did=pid.split("%p")[0]
                     rerank_run[qid][did] += score.item()
             elif passageAgg == 'max':
-                for qid, did, score in zip(records['query_id'], records['doc_id'], scores):
+                for qid, pid, score in zip(records['query_id'], records['doc_id'], scores):
+                    did=pid.split("%p")[0]
+                    #print("%s %s %f" % (qid, did, score.item()))
                     #should be 0 if the document hasnt been seen before
                     if score.item() > rerank_run[qid][did]:
                         rerank_run[qid][did] = score.item()
