@@ -101,7 +101,7 @@ def main_cli():
 
     runf = os.path.join(model_out_dir, f'test.run')
 
-    train.run_model(model, dataset, run, runf, desc='rerank')
+    train.run_model(model, dataset, test_run, runf, desc='rerank')
 # (model, dataset, train_pairs, qrels, valid_run, qrelsFile, saveDirectory)
 
 
