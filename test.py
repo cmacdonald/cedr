@@ -27,7 +27,7 @@ def main_cli():
 
     print("Reading testing file %s" % args.datafiles, flush=True)
     testTable = pd.read_csv(args.datafiles[0], sep='\t', header=0, error_bad_lines = False, index_col=False)
-    print(trainTable.columns.values)
+    print(testTable.columns.values)
     
     if args.passage == "max" or args.passage == "sum" or args.passage == "first":
       testTable = trainMZdataframe.applyPassaging(testTable, 150, 75)
@@ -35,7 +35,6 @@ def main_cli():
 
     train.aggregation = args.passage
 
-    os.makedirs(args.model_out_dir, exist_ok=True)
     signal.signal(signal.SIGUSR1, lambda sig, stack: traceback.print_stack(stack))
 
     docs={}
@@ -56,9 +55,9 @@ def main_cli():
         model.load(args.model_weights)
     #import pdb; pdb.set_trace()
 
-    runf = os.path.join(model_out_dir, f'test.run')
 
-    train.run_model(model, dataset, test_run, runf, desc='rerank')
+
+    train.run_model(model, dataset, test_run, args.out_path, desc='rerank')
 # (model, dataset, train_pairs, qrels, valid_run, qrelsFile, saveDirectory)
 
 
