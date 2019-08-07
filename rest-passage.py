@@ -40,17 +40,17 @@ class CEDR(Resource):
 
     def applyPassaging(self, dataframe, passageLength, passageStride):
         newRows=[]
-        for i, d in dataframe.iterrows():
-            toks = re.split(r"\s+", d['text_right'])
+        for i, r in dataframe.iterrows():
+            toks = re.split(r"\s+", r['text_right'])
             len_d = len(toks)
             if len_d < passageLength:
-                newRow = d.drop(labels=["title"])
-                newRow["text_right"] = str(dataframe['title']) + ' '.join(toks)
+                newRow = r.drop(labels=["title"])
+                newRow["text_right"] = str(r['title']) + ' ' + ' '.join(toks)
                 newRows.append(newRow)
             else:
                 for passage in self.slidingWindow(toks, passageLength, passageStride):
-                    newRow = d.drop(labels=["title"])
-                    newRow["text_right"] = str(dataframe['title']) + ' '.join(passage)
+                    newRow = r.drop(labels=["title"])
+                    newRow["text_right"] = str(r['title']) + ' ' + ' '.join(passage)
                     newRows.append(newRow)
         new_df = pd.DataFrame(newRows)
         new_df['text_left'].fillna('',inplace=True)
@@ -61,24 +61,23 @@ class CEDR(Resource):
         return new_df
 
 
-    def passage_to_docs(self,dataframe,scores):
-        rerank_run = {}
+    def passage_to_docs(self,passageDF, docDF,scores):
+        rerank_run = defaultdict(int)
         if self.score == 'first':
-            for did, score in zip(dataframe['id_right'], scores):
-                # if rerank_run.setdefault(qid, defaultdict(int))[did] == 0:
-                rerank_run.setdefault(qid, score) 
+            for did, score in zip(passageDF['id_right'], scores):
+                if not did in rerank_run:
+                    rerank_run[did]=score
         elif self.score == 'sum':
             #should be 0 if the document hasnt been seen before
-            for did, score in zip(dataframe['id_right'], scores):
-                rerank_run.setdefault(did,0)
+            for did, score in zip(passageDF['id_right'], scores):
                 rerank_run[did] += score
         elif self.score == 'max':
-            for did, score in zip(dataframe['id_right'], scores):
+            for did, score in zip(passageDF['id_right'], scores):
                 #should be 0 if the document hasnt been seen before
-                currentScore = rerank_run.setdefault(did, 0)
+                currentScore = rerank_run[did]
                 if score > currentScore:
                     rerank_run[did] = score
-        return list(rerank_run.values()) 
+        return [rerank_run[row["id_right"]] for i, row in docDF.iterrows()] 
 
     def post(self):
         self.requestCount+=1
@@ -115,16 +114,23 @@ class CEDR(Resource):
         #print('len(id_right)',len(np.unique(np.array(df['id_right']))))
         # print('len_df',len(df))
         passage = self.applyPassaging(df, passageLength, passageStride)
-        # print('len_passage',len(passage))
+        pd.set_option('display.width', 1000)
+        pd.options.display.max_colwidth = 200
+        print('len_passage',len(passage))
+        #print(passage)
+        #for i, r in passage.iterrows():
+        #    print(r["text_right"])
         
-        self.lock.acquire()
-        scores = train.score_docsMZ(self.model, passage)
-        self.lock.release() 
-        
+        try:
+            self.lock.acquire()
+            scores = train.score_docsMZ(self.model, passage)
+        finally:
+            self.lock.release() 
+        print(scores) 
         # print('len_scores',len(scores))
-        scores = self.passage_to_docs(passage,scores)
+        scores = self.passage_to_docs(passage,df,scores)
         # scores = scores.flatten()
-        scores = [s.tolist() for s in scores]
+        #scores = [s.tolist() for s in scores]
         # print('len_scores',len(scores))
         response = jsonify(scores)
         response.status_code = 200

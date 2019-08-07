@@ -107,7 +107,8 @@ def score_docsMZ(model, MZdatafame):
 
 def run_model(model, dataset, run, runf, desc='valid'):
     BATCH_SIZE = 16
-    rerank_run = {}
+    rerank_run = defaultdict(defaultdict(int))
+    #a defauldict where the default values are defaultdicts, whose default values are 0, qid->did->score
     with torch.no_grad(), tqdm(total=sum(len(r) for r in run.values()), ncols=80, desc=desc, leave=False) as pbar:
         model.eval()
         for records in data.iter_valid_records(model, dataset, run, BATCH_SIZE):
@@ -117,18 +118,16 @@ def run_model(model, dataset, run, runf, desc='valid'):
                            records['doc_mask'])
             if aggregation == 'first':
                 for qid, did, score in zip(records['query_id'], records['doc_id'], scores):
-                    if rerank_run.setdefault(qid, defaultdict(int))[did] == 0:
-                        rerank_run.setdefault(qid, defaultdict(int))[did] = score.item()
+                    if not did in rerank_run[qid]:
+                        rerank_run[qid][did] = score.item()
             elif aggregation == 'sum':
-                #should be 0 if the document hasnt been seen before
                 for qid, did, score in zip(records['query_id'], records['doc_id'], scores):
-                    rerank_run.setdefault(qid, defaultdict(int))[did] += score.item()
+                    rerank_run[qid][did] += score.item()
             elif aggregation == 'max':
                 for qid, did, score in zip(records['query_id'], records['doc_id'], scores):
                     #should be 0 if the document hasnt been seen before
-                    currentScore = rerank_run.setdefault(qid, defaultdict(int))[did]
-                    if score.item() > currentScore:
-                        rerank_run.setdefault(qid, defaultdict(int))[did] = score.item()
+                    if score.item() > rerank_run[qid][did]:
+                        rerank_run[qid][did] = score.item()
             pbar.update(len(records['query_id']))
     with open(runf, 'wt') as runfile:
         for qid in rerank_run:
